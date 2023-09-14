@@ -1,10 +1,10 @@
-from pytest_redis import factories
 import pytest
-from main import app
 from fastapi.testclient import TestClient
 from httpx import Response
+from pytest_redis import factories
 from redis.client import Redis
 
+from main import app
 
 client = TestClient(app)
 redis = factories.redisdb('redis_nooproc')
