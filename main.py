@@ -10,8 +10,6 @@ from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
 
-REDIS_DATA_URL = "redis://localhost:6379"
-
 
 async def connection() -> redis.Redis:
     """Настройка подключения к Redis"""
