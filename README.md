@@ -54,24 +54,25 @@ pytest
 
 * Добавление сайтов 
 ```
-POST localhost:8000/visited_links
+POST http://localhost:8000/visited_links
 {
-  "links": [
-    "https://ya.ru",
-    "rbc.ru",
-    "https://fastapi.tiangolo.com/tutorial/testing/"
-  ]
+    "links": [
+        "https://ya.ru",
+        "rbc.ru",
+        "https://fastapi.tiangolo.com/tutorial/testing/"
+    ]
 }
 ```
 ```
-curl -X POST http://localhost:8000/visited_links \
--d "{"links": ["https://ya.ru", "rbc.ru", "https://fastapi.tiangolo.com/tutorial/testing/"]}"
+curl -X POST "http://localhost:8000/visited_links" \
+  -H "Content-type: application/json" \
+  -d '{"links":["https://ya.ru", "rbc.ru", "https://fastapi.tiangolo.com/tutorial/testing/"]}'
 ```
 
 * Получение списка уникальных доменов, посещенных за переданный интервал времени
 ```
-GET localhost:8000/visited_domains?since=1&to=2145217638
+GET http://localhost:8000/visited_domains?since=1&to=2145217638
 ```
 ```
-curl -X GET http://localhost:8000/visited_domains?since=1&to=2145217638
+curl -X GET "http://localhost:8000/visited_domains?since=1&to=2145217638"
 ```
