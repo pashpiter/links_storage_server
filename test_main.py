@@ -1,18 +1,26 @@
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
-from pytest_redis import factories
-from redis.client import Redis
+from redis import StrictRedis
 
-from main import app
+import main
 
-client = TestClient(app)
-redis = factories.redisdb('redis_nooproc')
+HOST = 'localhost'
+PORT = 6379
+DB = 10
+
+sr = StrictRedis(host=HOST, port=PORT, db=DB)
+client = TestClient(main.app)
 
 
 @pytest.fixture
-def post_response() -> Response:
+@patch('main.connection')
+def post_response(mock_conn: Mock) -> Response:
     """Фикстура POST-запрос для добавления сайтов в базу"""
+    mock_conn.return_value = sr
+    sr.flushdb()
     response = client.post('/visited_links', json={
         "links": [
             "https://ya.ru",
@@ -21,12 +29,13 @@ def post_response() -> Response:
             "https://stackoverflow.com/questions/11/how-to-exit-the-vim-editor"
         ]
     })
-    response.status_code == 200
     return response
 
 
-def second_post_response() -> Response:
+@patch('main.connection')
+def second_post_response(mock_conn: Mock) -> Response:
     """POST-запрос на добавление сайтов в базу"""
+    mock_conn.return_value = sr
     response = client.post('/visited_links', json={
         "links": [
             "google.com",
@@ -37,27 +46,35 @@ def second_post_response() -> Response:
             'ya.ru'
         ]
     })
-    response.status_code == 200
     return response
 
 
-def test_post_links(redis: Redis, post_response: Response) -> None:
+@patch('main.connection')
+def test_post_links(mock_conn: Mock, post_response: Response) -> None:
     """Проверка добаления сайтов в базу"""
+    mock_conn.return_value = sr
+    print(type(mock_conn))
+
+    assert post_response.status_code == 201
     assert post_response.json() == {"status": "ok"}
-    assert len(redis.keys('*')) == 2
-    assert redis.zcard('timings') == 1
-    assert redis.llen('1') == 3
+    assert len(sr.keys('*')) == 2
+    assert sr.zcard('timings') == 1
+    assert sr.llen('1') == 3
 
     response = second_post_response()
+    assert response.status_code == 201
     assert response.json() == {"status": "ok"}
-    assert len(redis.keys('*')) == 3
-    assert redis.zcard('timings') == 2
-    assert redis.llen('1') == 3
-    assert redis.llen('2') == 6
+    assert len(sr.keys('*')) == 3
+    assert sr.zcard('timings') == 2
+    assert sr.llen('1') == 3
+    assert sr.llen('2') == 6
 
 
-def test_get_links(redis: Redis, post_response: Response) -> None:
+@patch('main.connection')
+def test_get_links(mock_conn: Mock, post_response: Response) -> None:
     """Проверка GET-запроса и корректного колиество доменов в ответе"""
+    mock_conn.return_value = sr
+
     response = client.get('/visited_domains?since=1&to=2147483648')
     assert response.status_code == 200
     assert response.json()['status'] == 'ok'
@@ -71,17 +88,24 @@ def test_get_links(redis: Redis, post_response: Response) -> None:
     assert response.status_code == 200
     assert response.json()['status'] == 'ok'
     assert len(response.json()['domains']) == 7
+    sr.flushdb()
 
 
-def test_get_links_past_time(redis: Redis, post_response: Response) -> None:
+@patch('main.connection')
+def test_get_links_past_time(mock_conn: Mock, post_response: Response) -> None:
     """Проверка корректной фильтрации по водным параметрам"""
+    mock_conn.return_value = sr
+
     response = client.get('/visited_domains?since=1&to=1147483648')
     assert response.status_code == 200
     assert len(response.json()['domains']) == 0
 
 
-def test_get_links_err(redis: Redis) -> None:
+@patch('main.connection')
+def test_get_links_err(mock_conn: Mock) -> None:
     """Проерка ошибки при отсутствии водных параметров в GET-запросе"""
+    mock_conn.return_value = sr
+
     response = client.get('/visited_domains')
     assert response.status_code == 422
     assert response.json()['detail'][0]['loc'] == ['query', 'since']
@@ -90,8 +114,11 @@ def test_get_links_err(redis: Redis) -> None:
     assert response.json()['detail'][1]['msg'] == 'Field required'
 
 
-def test_post_links_err(redis: Redis) -> None:
+@patch('main.connection')
+def test_post_links_err(mock_conn: Mock) -> None:
     """Проверка ошибки на POST-запрос без links"""
+    mock_conn.return_value = sr
+
     response = client.post('/visited_links')
     assert response.status_code == 422
     assert response.json()['detail'][0]['loc'] == ['body', 'links']

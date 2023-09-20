@@ -34,7 +34,6 @@ pydantic==2.0.3
 pydantic-core==2.3.0
 pyflakes==3.1.0
 pytest==7.4.1
-pytest-redis==3.0.2
 python-dotenv==1.0.0
 python-multipart==0.0.6
 python-ulid==1.1.0
